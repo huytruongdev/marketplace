@@ -1,0 +1,15 @@
+﻿namespace Listings.CommandService.DTOs;
+
+public sealed class ListingResponse
+{
+    public Guid Id { get; set; }
+    public Guid OwnerUserId { get; set; }
+    public string Title { get; set; } = default!;
+    public string CategoryId { get; set; } = default!;
+    public string BrandId { get; set; } = default!;
+    public string City { get; set; } = default!;
+    public string Condition { get; set; } = default!;
+    public long Price { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; set; }
+}
