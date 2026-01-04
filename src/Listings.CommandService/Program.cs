@@ -1,4 +1,6 @@
 ﻿using Listings.CommandService.Infrastructure;
+using Listings.CommandService.Infrastructure.BackgroundJobs;
+using Listings.CommandService.Infrastructure.Messaging;
 using Listings.CommandService.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,6 +16,21 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 });
 
 builder.Services.AddScoped<IListingCommandService, ListingCommandService>();
+
+builder.Services.AddSingleton(sp =>
+{
+    var opt = builder.Configuration.GetSection("RabbitMq").Get<RabbitMqOptions>()!;
+    return opt;
+});
+
+builder.Services.AddSingleton<IEventPublisher>(sp =>
+{
+    var opt = sp.GetRequiredService<RabbitMqOptions>();
+    // MVP: sync wait trong startup (ok). Sau này có thể refactor sang IHostedService init.
+    return RabbitMqEventPublisher.CreateAsync(opt, CancellationToken.None).GetAwaiter().GetResult();
+});
+
+builder.Services.AddHostedService<OutboxPublisher>();
 
 var app = builder.Build();
 
