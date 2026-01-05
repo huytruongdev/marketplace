@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Listings.SearchService.Options;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;

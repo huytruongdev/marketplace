@@ -1,4 +1,4 @@
-﻿namespace Listings.SearchService;
+﻿namespace Listings.SearchService.Options;
 
 public sealed class RabbitMqOptions
 {
