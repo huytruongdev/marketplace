@@ -1,5 +1,6 @@
 ﻿using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.QueryDsl;
+using Elastic.Transport;
 using Listings.SearchService;
 using Listings.SearchService.Insfratructure.ElasticSearch;
 using Listings.SearchService.Models;
@@ -16,7 +17,10 @@ builder.Services.Configure<ElasticsearchOptions>(
 builder.Services.AddSingleton(sp =>
 {
     var opt = sp.GetRequiredService<IOptions<ElasticsearchOptions>>().Value;
-    var settings = new ElasticsearchClientSettings(new Uri(opt.Url));
+
+    var settings = new ElasticsearchClientSettings(new Uri(opt.Url))
+        .Authentication(new BasicAuthentication("elastic", "your_strong_password"));
+
     return new ElasticsearchClient(settings);
 });
 
@@ -34,7 +38,8 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var init = scope.ServiceProvider.GetRequiredService<IndexInitializer>();
-    await init.EnsureCreatedAsync(app.Lifetime.ApplicationStopping);
+    var lifetime = scope.ServiceProvider.GetRequiredService<IHostApplicationLifetime>();
+    await init.EnsureCreatedAsync(lifetime.ApplicationStopping);
 }
 
 app.MapGet("/health", () => Results.Ok("ok"));

@@ -91,9 +91,8 @@ public sealed class RabbitMqSearchConsumer : BackgroundService, IAsyncDisposable
 
                     var id = idEl.GetGuid();
 
-                    var del = await _es.DeleteAsync(d => d
-                        .Index(_esOpt.Index)
-                        .Id(id.ToString()),
+                    var del = await _es.DeleteAsync<ListingSearchDocument>(id.ToString(), d => d
+                        .Index(_esOpt.Index),
                         CancellationToken.None);
 
                     // Delete 404 cũng coi như OK (idempotent)

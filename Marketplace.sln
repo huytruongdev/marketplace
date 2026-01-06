@@ -5,7 +5,7 @@ VisualStudioVersion = 17.14.36203.30
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Listings.CommandService", "src\Listings.CommandService\Listings.CommandService.csproj", "{2763292B-9D15-092E-9187-AC9CC7F89D89}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Listings.SearchService", "Listings.SearchService\Listings.SearchService.csproj", "{818A0C5E-442A-472A-8FD4-AC510B656AA2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Listings.SearchService", "src\Listings.SearchService\Listings.SearchService.csproj", "{818A0C5E-442A-472A-8FD4-AC510B656AA2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
