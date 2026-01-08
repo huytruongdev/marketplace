@@ -1,17 +1,19 @@
 ﻿using Elastic.Clients.Elasticsearch;
 using Listings.SearchService.Models;
 using Listings.SearchService.Options;
+using Microsoft.Extensions.Options;
 
 namespace Listings.SearchService.Insfratructure.ElasticSearch;
-
-public sealed class IndexInitializer(ElasticsearchClient client, ElasticsearchOptions opt)
+public sealed class IndexInitializer(ElasticsearchClient client, IOptions<ElasticsearchOptions> otp)
 {
+    private readonly ElasticsearchOptions _opt = otp.Value;
+
     public async Task EnsureCreatedAsync(CancellationToken ct)
     {
-        var exists = await client.Indices.ExistsAsync(opt.Index, ct);
+        var exists = await client.Indices.ExistsAsync(_opt.Index, ct);
         if (exists.Exists) return;
 
-        var create = await client.Indices.CreateAsync<ListingSearchDocument>(opt.Index, c => c
+        var create = await client.Indices.CreateAsync<ListingSearchDocument>(_opt.Index, c => c
             .Settings(s => s
                 .NumberOfShards(1)
                 .NumberOfReplicas(0)
@@ -33,7 +35,7 @@ public sealed class IndexInitializer(ElasticsearchClient client, ElasticsearchOp
             )
         , ct);
 
-        if (!create.IsValidResponse) // Trong v8 dùng IsValidResponse thay cho Acknowledged để bao quát hơn
-            throw new InvalidOperationException($"Failed to create index {opt.Index}: {create.DebugInformation}");
+        if (!create.IsValidResponse)
+            throw new InvalidOperationException($"Failed to create index {_opt.Index}: {create.DebugInformation}");
     }
 }

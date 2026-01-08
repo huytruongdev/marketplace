@@ -1,4 +1,4 @@
-﻿using System.Text;
+﻿using Listings.SearchService.Insfratructure.ElasticSearch;
 using Listings.SearchService.Options;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
@@ -9,6 +9,7 @@ namespace Listings.SearchService;
 public sealed class RabbitMqSearchConsumer : BackgroundService, IAsyncDisposable
 {
     private readonly RabbitMqOptions _opt;
+    private readonly IProjectionHandler _handler;
     private readonly ILogger<RabbitMqSearchConsumer> _logger;
 
     private IConnection? _connection;
@@ -16,9 +17,11 @@ public sealed class RabbitMqSearchConsumer : BackgroundService, IAsyncDisposable
 
     public RabbitMqSearchConsumer(
         IOptions<RabbitMqOptions> opt,
+        IProjectionHandler handler,
         ILogger<RabbitMqSearchConsumer> logger)
     {
         _opt = opt.Value;
+        _handler = handler;
         _logger = logger;
     }
 
@@ -52,13 +55,15 @@ public sealed class RabbitMqSearchConsumer : BackgroundService, IAsyncDisposable
             arguments: null,
             cancellationToken: cancellationToken);
 
-        await _channel.QueueBindAsync(_opt.Queue, _opt.Exchange, "ListingCreated", cancellationToken: cancellationToken);
-        await _channel.QueueBindAsync(_opt.Queue, _opt.Exchange, "ListingUpdated", cancellationToken: cancellationToken);
-        await _channel.QueueBindAsync(_opt.Queue, _opt.Exchange, "ListingDeleted", cancellationToken: cancellationToken);
+        // bind keys
+        var keys = new[] { "ListingCreated", "ListingUpdated", "ListingDeleted" };
+        foreach (var k in keys)
+            await _channel.QueueBindAsync(_opt.Queue, _opt.Exchange, k, cancellationToken: cancellationToken);
 
+        // 1 message / consumer
         await _channel.BasicQosAsync(0, 1, false, cancellationToken);
 
-        _logger.LogInformation("SearchService ready. Queue={Queue}", _opt.Queue);
+        _logger.LogInformation("SearchService ready. Exchange={Exchange} Queue={Queue}", _opt.Exchange, _opt.Queue);
 
         await base.StartAsync(cancellationToken);
     }
@@ -70,27 +75,18 @@ public sealed class RabbitMqSearchConsumer : BackgroundService, IAsyncDisposable
 
         var consumer = new AsyncEventingBasicConsumer(_channel);
 
-        // ✅ ĐÚNG CHUẨN v7
         consumer.ReceivedAsync += async (_, ea) =>
         {
             try
             {
-                var routingKey = ea.RoutingKey;
-                var payload = Encoding.UTF8.GetString(ea.Body.ToArray());
+                await _handler.HandleAsync(ea.RoutingKey, ea.Body, stoppingToken);
 
-                _logger.LogInformation("ReceivedAsync: {RoutingKey}", routingKey);
-                _logger.LogInformation("Payload: {Payload}", payload);
-
-                // TODO: deserialize + update Elasticsearch (async)
-
-                await _channel.BasicAckAsync(
-                    ea.DeliveryTag,
-                    multiple: false,
-                    cancellationToken: stoppingToken);
+                await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false, cancellationToken: stoppingToken);
+                _logger.LogInformation("ACK {RoutingKey} tag={Tag}", ea.RoutingKey, ea.DeliveryTag);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Processing failed");
+                _logger.LogError(ex, "NACK {RoutingKey} tag={Tag} (requeue=true)", ea.RoutingKey, ea.DeliveryTag);
 
                 await _channel.BasicNackAsync(
                     ea.DeliveryTag,
@@ -100,15 +96,14 @@ public sealed class RabbitMqSearchConsumer : BackgroundService, IAsyncDisposable
             }
         };
 
-        var consumerTag = await _channel.BasicConsumeAsync(
+        var tag = await _channel.BasicConsumeAsync(
             queue: _opt.Queue,
             autoAck: false,
             consumer: consumer,
             cancellationToken: stoppingToken);
 
-        _logger.LogInformation("Consuming started. Tag={Tag}", consumerTag);
+        _logger.LogInformation("Consuming started. Tag={Tag}", tag);
 
-        // giữ service sống
         await Task.Delay(Timeout.InfiniteTimeSpan, stoppingToken);
     }
 
